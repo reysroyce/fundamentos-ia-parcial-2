@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reconocimiento de dígitos</title>
+<style>
+body{font-family:Arial;background:#eef2f7;text-align:center;padding:20px}
+main{max-width:750px;margin:auto;background:white;padding:20px;border-radius:12px}
+canvas{border:1px solid #aaa;image-rendering:pixelated;width:196px;height:196px}
+button{padding:10px;margin:6px;background:#2456a6;color:white;border:0;border-radius:6px;cursor:pointer}
+#grafo{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:20px}
+.nodo{padding:12px;background:#ddd;border-radius:8px}
+.activo{background:#f5c542}
+.visitado{background:#8bd5a5}
+</style>
+</head>
+<body>
+<main>
+<h2>Reconocimiento de dígitos 0-9</h2>
+<p>Carga una imagen de un número.</p>
+<input type="file" id="archivo" accept="image/*">
+<br><br>
+<canvas id="lienzo" width="28" height="28"></canvas>
+<h3 id="resultado">Resultado: esperando imagen</h3>
+<p id="rasgos"></p>
+<button onclick="buscar()">Iniciar búsqueda</button>
+<button onclick="pruebas()">Evaluar 25 pruebas</button>
+<h3>Recorrido del grafo</h3>
+<div id="grafo"></div>
+<p id="camino"></p>
+<div id="pruebas"></div>
+</main>
+<script>
+const c=document.getElementById('lienzo');
+const ctx=c.getContext('2d');
+let datos=null, rasgos=null;
+const nombres=['Unknown','Análisis','Huecos','Líneas','Curvas',
+'Simetría','0','1','2','3','4','5','6','7','8','9'];
+const conexiones=[
+[0,1],[1,2],[1,3],[1,4],[1,5],
+[2,6],[2,14],[3,7],[3,13],
+[4,8],[4,9],[4,12],[4,15],
+[3,10],[3,11]
+];
+
+document.getElementById('archivo').onchange=e=>{
+let img=new Image();
+img.onload=()=>{
+ctx.fillStyle='white';ctx.fillRect(0,0,28,28);
+ctx.drawImage(img,0,0,28,28);
+leer();
+};
+img.src=URL.createObjectURL(e.target.files[0]);
+};
+
+function leer(){
+let d=ctx.getImageData(0,0,28,28).data;
+datos=[];
+for(let i=0;i<784;i++){
+let v=(d[i*4]+d[i*4+1]+d[i*4+2])/3;
+datos.push(v<150?1:0);
+}
+rasgos=extraer(datos);
+document.getElementById('rasgos').innerText=
+'Huecos: '+rasgos[0]+' | Simetría: '+rasgos[1].toFixed(2)+
+' | Densidad: '+rasgos[2].toFixed(2)+
+' | Extremos: '+rasgos[3];
+}
+
+function extraer(a){
+let dens=a.reduce((x,y)=>x+y,0)/784;
+let sim=0,total=0;
+for(let y=0;y<28;y++)for(let x=0;x<14;x++){
+if(a[y*28+x]===a[y*28+27-x])sim++;
+total++;
+}
+let vistos=new Set(),huecos=0;
+for(let y=0;y<28;y++)for(let x=0;x<28;x++){
+let i=y*28+x;
+if(a[i]===0&&!vistos.has(i)){
+let q=[i],grupo=[],borde=false;
+vistos.add(i);
+while(q.length){
+let p=q.pop(),px=p%28,py=Math.floor(p/28);
+grupo.push(p);
+if(px===0||px===27||py===0||py===27)borde=true;
+for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+let nx=px+dx,ny=py+dy,ni=ny*28+nx;
+if(nx>=0&&nx<28&&ny>=0&&ny<28&&a[ni]===0&&!vistos.has(ni)){
+vistos.add(ni);q.push(ni);
+}
+}
+}
+if(!borde&&grupo.length>2)huecos++;
+}
+}
+let extremos=0;
+for(let y=1;y<27;y++)for(let x=1;x<27;x++){
+let i=y*28+x;
+if(a[i]){
+let n=0;
+for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)
+if(dx||dy)n+=a[(y+dy)*28+x+dx];
+if(n<=1)extremos++;
+}
+}
+return [huecos,sim/total,dens,extremos];
+}
+
+// Plantillas digitales generadas automáticamente.
+function plantilla(n,fuente='bold 25px Arial'){
+let t=document.createElement('canvas');t.width=28;t.height=28;
+let x=t.getContext('2d');
+x.fillStyle='white';x.fillRect(0,0,28,28);
+x.fillStyle='black';x.font=fuente;
+x.textAlign='center';x.textBaseline='middle';
+x.fillText(n,14,14);
+let d=x.getImageData(0,0,28,28).data;
+return extraer(Array.from({length:784},(_,i)=>
+((d[i*4]+d[i*4+1]+d[i*4+2])/3)<150?1:0));
+}
+
+let pesos=[3,2,2,1];
+function clasificar(r){
+let mejor=0,min=Infinity;
+for(let n=0;n<10;n++){
+let p=plantilla(n);
+let dist=0;
+for(let j=0;j<4;j++)
+dist+=pesos[j]*Math.abs(r[j]-p[j]);
+if(dist<min){min=dist;mejor=n;}
+}
+return mejor;
+}
+
+async function buscar(){
+if(!rasgos){alert('Primero carga una imagen');return;}
+let orden=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+let visitados=[];
+let g=document.getElementById('grafo');
+g.innerHTML=nombres.map((n,i)=>
+`<span class="nodo" id="n${i}">${n}</span>`).join('');
+for(let i of orden){
+document.querySelectorAll('.nodo').forEach(x=>x.className='nodo');
+document.getElementById('n'+i).classList.add('activo');
+visitados.push(nombres[i]);
+document.getElementById('camino').innerText='Visitados: '+visitados.join(' → ');
+await new Promise(r=>setTimeout(r,180));
+}
+let n=clasificar(rasgos);
+document.getElementById('n'+(6+n)).classList.add('visitado');
+document.getElementById('resultado').innerText='Dígito reconocido: '+n;
+document.getElementById('camino').innerText+=' → '+n;
+}
+
+// Prueba de 25 imágenes con variaciones de fuente.
+function pruebas(){
+let correctos=0,html='';
+let fuentes=['bold 25px Arial','bold 25px serif',
+'bold 25px monospace','italic 25px Arial',
+'bold 24px sans-serif'];
+for(let i=0;i<25;i++){
+let n=i%10, t=document.createElement('canvas');
+t.width=28;t.height=28;
+let x=t.getContext('2d');
+x.fillStyle='white';x.fillRect(0,0,28,28);
+x.fillStyle='black';x.font=fuentes[i%5];
+x.textAlign='center';x.textBaseline='middle';
+x.fillText(n,14+(i%3-1),14);
+let d=x.getImageData(0,0,28,28).data;
+let a=Array.from({length:784},(_,j)=>
+(d[j*4]+d[j*4+1]+d[j*4+2])/3<150?1:0);
+let pred=clasificar(extraer(a));
+if(pred===n)correctos++;
+html+=`Prueba ${i+1}: esperado ${n}, reconocido ${pred}<br>`;
+}
+document.getElementById('pruebas').innerHTML=
+html+'<h3>Precisión: '+(correctos/25*100).toFixed(1)+'%</h3>';
+}
+</script>
+</body>
+</html>
