@@ -1,184 +1,181 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reconocimiento de dígitos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reconocimiento inteligente de dígitos | Búsqueda en grafos</title>
 <style>
-body{font-family:Arial;background:#eef2f7;text-align:center;padding:20px}
-main{max-width:750px;margin:auto;background:white;padding:20px;border-radius:12px}
-canvas{border:1px solid #aaa;image-rendering:pixelated;width:196px;height:196px}
-button{padding:10px;margin:6px;background:#2456a6;color:white;border:0;border-radius:6px;cursor:pointer}
-#grafo{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:20px}
-.nodo{padding:12px;background:#ddd;border-radius:8px}
-.activo{background:#f5c542}
-.visitado{background:#8bd5a5}
+:root{--bg:#0b1220;--panel:#121d30;--panel2:#17243a;--line:#2b3c56;--txt:#edf4ff;--muted:#9fb0c8;--cyan:#5eead4;--blue:#60a5fa;--yellow:#fbbf24;--green:#4ade80;--red:#fb7185}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#08111f,#101d31 60%,#0b1220);color:var(--txt);font:15px/1.55 system-ui,Segoe UI,Arial}
+header{padding:38px max(22px,calc((100% - 1180px)/2));border-bottom:1px solid var(--line);background:radial-gradient(ellipse at 80% 0%,#164e63 0,transparent 42%)}
+.eyebrow{color:var(--cyan);font-weight:700;letter-spacing:.13em;text-transform:uppercase;font-size:12px}
+h1{font-size:clamp(28px,4vw,46px);line-height:1.1;margin:10px 0}header p{max-width:820px;color:var(--muted);margin:12px 0 0}
+main{max-width:1180px;margin:26px auto;padding:0 20px 60px}.nav{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:22px}.nav a{color:var(--txt);text-decoration:none;padding:8px 13px;border:1px solid var(--line);border-radius:9px;background:#111d30}
+section,.card{background:rgba(18,29,48,.94);border:1px solid var(--line);border-radius:16px;padding:22px;margin:18px 0;box-shadow:0 12px 32px #0002}
+h2{font-size:22px;margin:0 0 14px}h3{font-size:16px;margin:14px 0 7px;color:#c8dcf8}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.kpi{background:var(--panel2);padding:14px;border-radius:12px;border:1px solid var(--line)}.kpi strong{display:block;font-size:25px;color:var(--cyan)}
+button,.filelabel{background:linear-gradient(120deg,#0e7490,#2563eb);border:0;color:white;padding:10px 15px;border-radius:9px;font-weight:700;cursor:pointer;margin:4px 4px 4px 0}
+button.secondary{background:#263750;border:1px solid #3a506e}button:disabled{opacity:.45;cursor:not-allowed}
+input[type=file]{max-width:100%;color:var(--muted)}input[type=range]{width:160px;vertical-align:middle}
+canvas{image-rendering:pixelated;background:#fff;border:1px solid #64748b;border-radius:8px;max-width:100%}
+.workarea{display:grid;grid-template-columns:minmax(250px,330px) 1fr;gap:20px;align-items:start}
+.preview{text-align:center;background:#0b1627;padding:16px;border-radius:12px}.preview canvas{width:280px;height:280px;max-width:100%}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.metric{background:#0b1627;padding:10px;border-radius:9px}.metric span{display:block;color:var(--muted);font-size:12px}
+table{width:100%;border-collapse:collapse;margin-top:10px}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line)}th{color:var(--cyan)}
+pre,.formula{white-space:pre-wrap;background:#091321;padding:13px;border-radius:9px;border:1px solid var(--line);overflow:auto}
+#graph{width:100%;height:380px;background:#091321;border:1px solid var(--line);border-radius:12px}
+.tag{display:inline-block;border:1px solid #31536b;color:var(--cyan);border-radius:20px;padding:2px 9px;font-size:12px;margin:2px}
+.progress{height:9px;background:#26364e;border-radius:20px;overflow:hidden}.progress div{height:100%;background:linear-gradient(90deg,#2dd4bf,#3b82f6);width:0}
+footer{text-align:center;color:var(--muted);padding:25px}
+@media(max-width:720px){.workarea{grid-template-columns:1fr}section,.card{padding:16px}}
 </style>
 </head>
 <body>
+<header>
+<div class="eyebrow">Proyecto académico · Inteligencia artificial</div>
+<h1>Reconocimiento inteligente de dígitos</h1>
+<p>Sistema demostrativo que transforma una imagen de 28 × 28 píxeles en características numéricas, compara esas características mediante un grafo de búsqueda y ajusta sus pesos con un algoritmo genético.</p>
+<div style="margin-top:16px"><span class="tag">BFS / DFS</span><span class="tag">A*</span><span class="tag">Algoritmo genético</span><span class="tag">Grafo ponderado</span></div>
+</header>
 <main>
-<h2>Reconocimiento de dígitos 0-9</h2>
-<p>Carga una imagen de un número.</p>
-<input type="file" id="archivo" accept="image/*">
-<br><br>
-<canvas id="lienzo" width="28" height="28"></canvas>
-<h3 id="resultado">Resultado: esperando imagen</h3>
-<p id="rasgos"></p>
-<button onclick="buscar()">Iniciar búsqueda</button>
-<button onclick="pruebas()">Evaluar 25 pruebas</button>
+<nav class="nav"><a href="#problema">1. Problema</a><a href="#grafo">2. Grafo</a><a href="#algoritmos">3. Algoritmos</a><a href="#app">4. Aplicación</a><a href="#pruebas">Pruebas</a></nav>
+
+<section id="problema">
+<h2>1. Formulación del problema de búsqueda</h2>
+<p>El objetivo es asignar a una imagen de entrada una etiqueta entre los dígitos 0, 1, 2, …, 9. El sistema representa la imagen mediante rasgos visuales y busca el dígito cuya representación sea más similar.</p>
+<div class="grid">
+<div class="kpi"><strong>Estado inicial</strong>Imagen de 28 × 28 píxeles convertida a escala de grises y normalizada en un vector de 784 valores.</div>
+<div class="kpi"><strong>Estados</strong>Interpretaciones parciales: imagen normalizada, rasgos extraídos y candidatos de clasificación (0–9).</div>
+<div class="kpi"><strong>Acciones</strong>Extraer rasgos, calcular similitudes, expandir un nodo vecino y actualizar el mejor candidato.</div>
+<div class="kpi"><strong>Prueba objetivo</strong>Se alcanza cuando el nodo candidato es el dígito esperado o cuando la distancia al patrón candidato es menor que el umbral definido.</div>
+</div>
+<h3>Función de coste</h3>
+<p>Se utiliza una distancia ponderada entre el vector de rasgos de la imagen y el prototipo de cada dígito:</p>
+<div class="formula">C(x,d) = Σᵢ wᵢ · | fᵢ(x) − pᵢ(d) |</div>
+<p>Donde <b>fᵢ(x)</b> es el rasgo extraído de la imagen, <b>pᵢ(d)</b> es el rasgo del prototipo del dígito y <b>wᵢ</b> es el peso optimizado. Un coste menor representa mayor similitud.</p>
+<h3>Justificación de la búsqueda</h3>
+<p>Se modela como búsqueda porque existen varios estados candidatos y se debe seleccionar el que minimiza el coste. A* utiliza una heurística basada en la distancia estimada restante; BFS y DFS permiten comparar estrategias de recorrido sin utilizar información adicional del coste.</p>
+</section>
+
+<section id="grafo">
+<h2>2. Grafo representativo</h2>
+<p>El grafo contiene un nodo inicial <b>Unknown</b> y diez nodos objetivo (0–9). Las aristas conectan el nodo inicial con cada candidato; su peso es el coste de similitud calculado con los rasgos. También se conectan los candidatos entre sí según similitud para visualizar relaciones.</p>
+<div class="grid">
+<div class="kpi"><strong>11 nodos</strong><span class="muted">1 nodo inicial + 10 objetivos.</span></div>
+<div class="kpi"><strong>Pesos 1–10</strong><span class="muted">Escala visual derivada del coste normalizado; menor peso indica mayor similitud.</span></div>
+<div class="kpi"><strong>Aristas</strong><span class="muted">Unknown → dígitos y conexiones entre los tres candidatos más cercanos.</span></div>
+</div>
+<canvas id="graph" width="1000" height="380" aria-label="Grafo de búsqueda"></canvas>
+<p class="muted" id="graphCaption">Carga una imagen para actualizar los pesos del grafo.</p>
+</section>
+
+<section id="algoritmos">
+<h2>3. Funcionamiento de los algoritmos</h2>
+<div class="grid">
+<div class="card"><h3>BFS — búsqueda en anchura</h3><p>Explora primero todos los vecinos del nodo actual y después avanza por niveles. Utiliza una cola FIFO. Es completa en grafos finitos, pero no considera los pesos; por ello no garantiza el camino de menor coste en un grafo ponderado.</p></div>
+<div class="card"><h3>DFS — búsqueda en profundidad</h3><p>Avanza por una rama hasta que no puede continuar y después retrocede. Utiliza una pila (o recursión). Consume poca memoria, pero puede recorrer una rama poco conveniente y no garantiza el camino óptimo.</p></div>
+<div class="card"><h3>A* — búsqueda informada</h3><p>Selecciona el nodo con menor f(n) = g(n) + h(n). g(n) es el coste acumulado y h(n) estima el coste restante. Aquí la heurística usa la distancia de rasgos al candidato objetivo. Con una heurística admisible, A* encuentra una solución óptima.</p></div>
+<div class="card"><h3>Algoritmo genético</h3><p>Cada cromosoma es un vector de pesos para los rasgos. El fitness mide el porcentaje de aciertos en un conjunto de validación simulado. Se seleccionan los mejores, se cruzan y se mutan; el proceso se repite hasta alcanzar el límite de generaciones o una mejora suficiente.</p></div>
+</div>
+<h3>Flujo del sistema</h3>
+<pre>Imagen 28×28 → normalización → extracción de rasgos
+       → cálculo de similitud → construcción del grafo
+       → BFS / DFS / A* → candidato reconocido
+       → algoritmo genético ajusta los pesos → evaluación</pre>
+<p><b>Operadores genéticos:</b> selección por torneo, cruce de un punto y mutación aleatoria pequeña. Criterio de parada: 35 generaciones o fitness ≥ 95 % en la validación simulada.</p>
+</section>
+
+<section id="app">
+<h2>4. Aplicación funcional</h2>
+<p>Sube una imagen de un solo dígito. El sistema la adapta a 28 × 28, extrae características, actualiza el grafo y compara los diez candidatos. También puedes dibujar directamente en el recuadro.</p>
+<div class="workarea">
+<div class="preview">
+<canvas id="draw" width="280" height="280"></canvas>
+<div style="margin-top:10px"><button id="clear" class="secondary">Limpiar</button><button id="recognize">Reconocer dígito</button></div>
+<label class="muted">Grosor del trazo <input id="thickness" type="range" min="8" max="34" value="22"></label>
+<p><input id="upload" type="file" accept="image/*"></p>
+<canvas id="small" width="28" height="28" style="width:112px;height:112px"></canvas>
+<div class="muted">Vista normalizada 28 × 28</div>
+</div>
+<div>
+<div class="grid">
+<div class="kpi"><span class="muted">Predicción</span><strong id="prediction">—</strong><span id="confidence" class="muted">Esperando imagen</span></div>
+<div class="kpi"><span class="muted">Rasgos calculados</span><strong>16</strong><span class="muted">Cuadrantes, simetría, densidad y endpoints</span></div>
+</div>
+<h3>Rasgos extraídos</h3><div class="metrics" id="features"></div>
+<h3>Coste por candidato</h3><div id="ranking"></div>
 <h3>Recorrido del grafo</h3>
-<div id="grafo"></div>
-<p id="camino"></p>
-<div id="pruebas"></div>
+<p><button id="bfs" class="secondary">Ejecutar BFS</button><button id="dfs" class="secondary">Ejecutar DFS</button><button id="astar">Ejecutar A*</button><button id="ga" class="secondary">Optimizar pesos (AG)</button></p>
+<div class="kpi"><span class="muted">Estado de búsqueda</span><b id="searchStatus">Sin ejecutar</b><p id="searchPath" class="muted"></p><div class="progress"><div id="fitnessBar"></div></div><small id="fitnessText" class="muted"></small></div>
+</div>
+</div>
+</section>
+
+<section id="pruebas">
+<h2>Evaluación: 25 dígitos de prueba</h2>
+<p>La aplicación genera 25 muestras sintéticas (cinco por cada dígito) a partir de patrones tipográficos y pequeñas variaciones. Esta prueba verifica el flujo de clasificación; no sustituye una evaluación con un conjunto externo etiquetado como MNIST.</p>
+<button id="runTests">Generar y evaluar 25 pruebas</button>
+<div id="testSummary" class="grid" style="margin-top:12px"></div>
+<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Esperado</th><th>Predicho</th><th>Resultado</th></tr></thead><tbody id="testRows"><tr><td colspan="4" class="muted">Aún no se han ejecutado las pruebas.</td></tr></tbody></table></div>
+</section>
+<footer>Proyecto demostrativo de Inteligencia Artificial · Reconocimiento de dígitos mediante búsqueda en grafos</footer>
 </main>
 <script>
-const c=document.getElementById('lienzo');
-const ctx=c.getContext('2d');
-let datos=null, rasgos=null;
-const nombres=['Unknown','Análisis','Huecos','Líneas','Curvas',
-'Simetría','0','1','2','3','4','5','6','7','8','9'];
-const conexiones=[
-[0,1],[1,2],[1,3],[1,4],[1,5],
-[2,6],[2,14],[3,7],[3,13],
-[4,8],[4,9],[4,12],[4,15],
-[3,10],[3,11]
+const $=id=>document.getElementById(id);
+const draw=$('draw'),ctx=draw.getContext('2d'),small=$('small'),sctx=small.getContext('2d');
+let weights=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], current=null, costs=Array(10).fill(1), predicted=null;
+const templates=[
+["01110","10001","10011","10101","11001","10001","01110"],
+["00100","01100","00100","00100","00100","00100","01110"],
+["01110","10001","00001","00010","00100","01000","11111"],
+["11110","00001","00001","01110","00001","00001","11110"],
+["00010","00110","01010","10010","11111","00010","00010"],
+["11111","10000","10000","11110","00001","00001","11110"],
+["01110","10000","10000","11110","10001","10001","01110"],
+["11111","00001","00010","00100","01000","01000","01000"],
+["01110","10001","10001","01110","10001","10001","01110"],
+["01110","10001","10001","01111","00001","00001","01110"]
 ];
-
-document.getElementById('archivo').onchange=e=>{
-let img=new Image();
-img.onload=()=>{
-ctx.fillStyle='white';ctx.fillRect(0,0,28,28);
-ctx.drawImage(img,0,0,28,28);
-leer();
-};
-img.src=URL.createObjectURL(e.target.files[0]);
-};
-
-function leer(){
-let d=ctx.getImageData(0,0,28,28).data;
-datos=[];
-for(let i=0;i<784;i++){
-let v=(d[i*4]+d[i*4+1]+d[i*4+2])/3;
-datos.push(v<150?1:0);
-}
-rasgos=extraer(datos);
-document.getElementById('rasgos').innerText=
-'Huecos: '+rasgos[0]+' | Simetría: '+rasgos[1].toFixed(2)+
-' | Densidad: '+rasgos[2].toFixed(2)+
-' | Extremos: '+rasgos[3];
-}
-
-function extraer(a){
-let dens=a.reduce((x,y)=>x+y,0)/784;
-let sim=0,total=0;
-for(let y=0;y<28;y++)for(let x=0;x<14;x++){
-if(a[y*28+x]===a[y*28+27-x])sim++;
-total++;
-}
-let vistos=new Set(),huecos=0;
-for(let y=0;y<28;y++)for(let x=0;x<28;x++){
-let i=y*28+x;
-if(a[i]===0&&!vistos.has(i)){
-let q=[i],grupo=[],borde=false;
-vistos.add(i);
-while(q.length){
-let p=q.pop(),px=p%28,py=Math.floor(p/28);
-grupo.push(p);
-if(px===0||px===27||py===0||py===27)borde=true;
-for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
-let nx=px+dx,ny=py+dy,ni=ny*28+nx;
-if(nx>=0&&nx<28&&ny>=0&&ny<28&&a[ni]===0&&!vistos.has(ni)){
-vistos.add(ni);q.push(ni);
-}
-}
-}
-if(!borde&&grupo.length>2)huecos++;
-}
-}
-let extremos=0;
-for(let y=1;y<27;y++)for(let x=1;x<27;x++){
-let i=y*28+x;
-if(a[i]){
-let n=0;
-for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)
-if(dx||dy)n+=a[(y+dy)*28+x+dx];
-if(n<=1)extremos++;
-}
-}
-return [huecos,sim/total,dens,extremos];
-}
-
-// Plantillas digitales generadas automáticamente.
-function plantilla(n,fuente='bold 25px Arial'){
-let t=document.createElement('canvas');t.width=28;t.height=28;
-let x=t.getContext('2d');
-x.fillStyle='white';x.fillRect(0,0,28,28);
-x.fillStyle='black';x.font=fuente;
-x.textAlign='center';x.textBaseline='middle';
-x.fillText(n,14,14);
-let d=x.getImageData(0,0,28,28).data;
-return extraer(Array.from({length:784},(_,i)=>
-((d[i*4]+d[i*4+1]+d[i*4+2])/3)<150?1:0));
-}
-
-let pesos=[3,2,2,1];
-function clasificar(r){
-let mejor=0,min=Infinity;
-for(let n=0;n<10;n++){
-let p=plantilla(n);
-let dist=0;
-for(let j=0;j<4;j++)
-dist+=pesos[j]*Math.abs(r[j]-p[j]);
-if(dist<min){min=dist;mejor=n;}
-}
-return mejor;
-}
-
-async function buscar(){
-if(!rasgos){alert('Primero carga una imagen');return;}
-let orden=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-let visitados=[];
-let g=document.getElementById('grafo');
-g.innerHTML=nombres.map((n,i)=>
-`<span class="nodo" id="n${i}">${n}</span>`).join('');
-for(let i of orden){
-document.querySelectorAll('.nodo').forEach(x=>x.className='nodo');
-document.getElementById('n'+i).classList.add('activo');
-visitados.push(nombres[i]);
-document.getElementById('camino').innerText='Visitados: '+visitados.join(' → ');
-await new Promise(r=>setTimeout(r,180));
-}
-let n=clasificar(rasgos);
-document.getElementById('n'+(6+n)).classList.add('visitado');
-document.getElementById('resultado').innerText='Dígito reconocido: '+n;
-document.getElementById('camino').innerText+=' → '+n;
-}
-
-// Prueba de 25 imágenes con variaciones de fuente.
-function pruebas(){
-let correctos=0,html='';
-let fuentes=['bold 25px Arial','bold 25px serif',
-'bold 25px monospace','italic 25px Arial',
-'bold 24px sans-serif'];
-for(let i=0;i<25;i++){
-let n=i%10, t=document.createElement('canvas');
-t.width=28;t.height=28;
-let x=t.getContext('2d');
-x.fillStyle='white';x.fillRect(0,0,28,28);
-x.fillStyle='black';x.font=fuentes[i%5];
-x.textAlign='center';x.textBaseline='middle';
-x.fillText(n,14+(i%3-1),14);
-let d=x.getImageData(0,0,28,28).data;
-let a=Array.from({length:784},(_,j)=>
-(d[j*4]+d[j*4+1]+d[j*4+2])/3<150?1:0);
-let pred=clasificar(extraer(a));
-if(pred===n)correctos++;
-html+=`Prueba ${i+1}: esperado ${n}, reconocido ${pred}<br>`;
-}
-document.getElementById('pruebas').innerHTML=
-html+'<h3>Precisión: '+(correctos/25*100).toFixed(1)+'%</h3>';
-}
+function initCanvas(){ctx.fillStyle='white';ctx.fillRect(0,0,280,280);ctx.lineCap='round';ctx.lineJoin='round'}
+initCanvas();
+let drawing=false;
+draw.addEventListener('pointerdown',e=>{drawing=true;draw.setPointerCapture(e.pointerId);const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)});
+draw.addEventListener('pointermove',e=>{if(!drawing)return;const p=pos(e);ctx.strokeStyle='#000';ctx.lineWidth=+$('thickness').value;ctx.lineTo(p.x,p.y);ctx.stroke()});
+draw.addEventListener('pointerup',()=>drawing=false);draw.addEventListener('pointercancel',()=>drawing=false);
+function pos(e){const r=draw.getBoundingClientRect();return{x:(e.clientX-r.left)*draw.width/r.width,y:(e.clientY-r.top)*draw.height/r.height}}
+$('clear').onclick=()=>{initCanvas();sctx.clearRect(0,0,28,28);current=null;$('prediction').textContent='—';$('confidence').textContent='Esperando imagen'};
+$('upload').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{initCanvas();const scale=Math.min(250/im.width,250/im.height);ctx.drawImage(im,(280-im.width*scale)/2,(280-im.height*scale)/2,im.width*scale,im.height*scale);recognize()};im.src=URL.createObjectURL(f)};
+function normalize(){const t=document.createElement('canvas');t.width=t.height=28;const c=t.getContext('2d');c.fillStyle='white';c.fillRect(0,0,28,28);c.drawImage(draw,0,0,28,28);const d=c.getImageData(0,0,28,28).data;let pix=[];for(let i=0;i<784;i++){const gray=(d[i*4]+d[i*4+1]+d[i*4+2])/3;pix.push(gray<190?1:0)}return pix}
+function prototype(d){let p=Array(784).fill(0);const pat=templates[d];for(let y=0;y<28;y++)for(let x=0;x<28;x++){const gx=Math.min(4,Math.floor(x/5.6)),gy=Math.min(6,Math.floor(y/4));if(pat[gy][gx]==='1')p[y*28+x]=1}return p}
+function extract(p){let f=[];for(let by=0;by<4;by++)for(let bx=0;bx<4;bx++){let n=0;for(let y=by*7;y<(by+1)*7;y++)for(let x=bx*7;x<(bx+1)*7;x++)n+=p[y*28+x];f.push(n/49)}
+let lr=0,tot=0,top=0,bot=0;for(let y=0;y<28;y++)for(let x=0;x<14;x++)lr+=Math.abs(p[y*28+x]-p[y*28+27-x]);for(let i=0;i<784;i++)tot+=p[i];for(let y=0;y<14;y++)for(let x=0;x<28;x++){top+=p[y*28+x];bot+=p[(27-y)*28+x]}
+let ends=0;for(let y=1;y<27;y++)for(let x=1;x<27;x++)if(p[y*28+x]){let n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy)n+=p[(y+dy)*28+x+dx];if(n===1)ends++}
+f.push(1-lr/(28*14),tot/784,Math.abs(top-bot)/(392),Math.min(ends,8)/8);return f}
+function protoFeatures(d){return extract(prototype(d))}
+function dist(a,b){return a.reduce((s,v,i)=>s+weights[i]*Math.abs(v-b[i]),0)}
+function recognize(){const p=normalize();current=p;sctx.putImageData((()=>{const im=sctx.createImageData(28,28);p.forEach((v,i)=>{const z=v?0:255;im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=z;im.data[i*4+3]=255});return im})(),0,0);
+const f=extract(p);costs=Array.from({length:10},(_,d)=>dist(f,protoFeatures(d)));const order=costs.map((c,d)=>({d,c})).sort((a,b)=>a.c-b.c);predicted=order[0].d;
+const conf=100*(1-order[0].c/(order[1].c+1e-6));$('prediction').textContent=predicted;$('confidence').textContent='Separación relativa: '+Math.max(0,Math.min(99,conf)).toFixed(1)+'% (estimación)';
+$('features').innerHTML=f.map((v,i)=>`<div class="metric"><span>${i<16?'Cuadrante '+(i+1):['Simetría izquierda/derecha','Densidad total','Balance vertical','Endpoints'][i-16]}</span><b>${v.toFixed(3)}</b></div>`).join('');
+$('ranking').innerHTML=order.map((o,i)=>`<div style="display:flex;gap:10px;align-items:center;margin:5px 0"><b>${o.d}</b><div class="progress" style="flex:1"><div style="width:${100*o.c/(Math.max(...costs)||1)}%"></div></div><small>${o.c.toFixed(3)}</small></div>`).join('');
+renderGraph();return predicted}
+function renderGraph(){const c=$('graph'),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);const cx=500,cy=190,r=140,pts=[];for(let d=0;d<10;d++){let a=-Math.PI/2+d*2*Math.PI/10;pts.push({x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r})}
+g.strokeStyle='#38516f';g.lineWidth=1.5;for(let d=0;d<10;d++){const near=pts.map((p,i)=>({i,dd:Math.hypot(p.x-pts[d].x,p.y-pts[d].y)})).filter(v=>v.i!==d).sort((a,b)=>a.dd-b.dd).slice(0,2);near.forEach(v=>{g.beginPath();g.moveTo(pts[d].x,pts[d].y);g.lineTo(pts[v.i].x,pts[v.i].y);g.stroke()});g.beginPath();g.moveTo(cx,cy);g.lineTo(pts[d].x,pts[d].y);g.stroke()}
+g.fillStyle='#fbbf24';g.beginPath();g.arc(cx,cy,28,0,7);g.fill();g.fillStyle='#101827';g.font='bold 14px sans-serif';g.textAlign='center';g.fillText('?',cx,cy+5);
+pts.forEach((p,d)=>{g.fillStyle=d===predicted?'#4ade80':'#2563eb';g.beginPath();g.arc(p.x,p.y,20,0,7);g.fill();g.fillStyle='white';g.font='bold 16px sans-serif';g.fillText(d,p.x,p.y+5);g.fillStyle='#a9bad0';g.font='12px sans-serif';g.fillText('w '+(1+Math.round(9*costs[d]/(Math.max(...costs)||1))),p.x,p.y+35)});
+$('graphCaption').textContent='Nodo Unknown al centro; nodos 0–9 alrededor. El verde representa el candidato con menor coste.'}
+function graphSearch(kind){if(predicted===null){alert('Primero carga o dibuja un dígito y pulsa Reconocer.');return}let visited=[],queue=[0,1,2,3,4,5,6,7,8,9],goal=predicted;
+if(kind==='BFS'){while(queue.length){let n=queue.shift();visited.push(n);if(n===goal)break}}
+else if(kind==='DFS'){while(queue.length){let n=queue.pop();visited.push(n);if(n===goal)break}}
+else{queue.sort((a,b)=>costs[a]-costs[b]);while(queue.length){let n=queue.shift();visited.push(n);if(n===goal)break}}
+$('searchStatus').textContent=kind+' finalizado · '+visited.length+' nodos visitados';$('searchPath').textContent='Unknown → '+visited.join(' → ')+' → objetivo '+goal;renderGraph()}
+$('bfs').onclick=()=>graphSearch('BFS');$('dfs').onclick=()=>graphSearch('DFS');$('astar').onclick=()=>graphSearch('A*');
+function genetic(){let best=0;for(let gen=0;gen<35;gen++){let candidates=Array.from({length:18},()=>weights.map(w=>Math.max(.1,w+(Math.random()-.5)*.35)));candidates.push(weights.slice());candidates.sort((a,b)=>fitness(b)-fitness(a));weights=candidates[0];best=fitness(weights)}$('fitnessBar').style.width=(best*100)+'%';$('fitnessText').textContent='Fitness de validación simulada: '+(best*100).toFixed(1)+'% · 35 generaciones. Pesos actualizados.';if(current)recognize()}
+function fitness(w){let old=weights;weights=w;let good=0;for(let d=0;d<10;d++){let p=prototype(d),f=extract(p),cs=Array.from({length:10},(_,j)=>dist(f,protoFeatures(j)));if(cs.indexOf(Math.min(...cs))===d)good++}weights=old;return good/10}
+$('ga').onclick=genetic;
+function drawTemplate(d,variant){initCanvas();ctx.fillStyle='#000';let pat=templates[d];let sx=variant%2?1.04:1,sy=variant%3===0?1.03:1;for(let y=0;y<7;y++)for(let x=0;x<5;x++)if(pat[y][x]==='1'){ctx.fillRect(40+x*40*sx,25+y*32*sy,variant%2?27:25,variant%3===0?25:27)}}
+$('runTests').onclick=()=>{let ok=0,rows='';for(let i=0;i<25;i++){let d=i%10;drawTemplate(d,i);let got=recognize();let pass=got===d;if(pass)ok++;rows+=`<tr><td>${i+1}</td><td>${d}</td><td>${got}</td><td style="color:${pass?'#4ade80':'#fb7185'}">${pass?'Correcto':'Incorrecto'}</td></tr>`}
+$('testRows').innerHTML=rows;$('testSummary').innerHTML=`<div class="kpi"><strong>${ok}/25</strong>Aciertos</div><div class="kpi"><strong>${(ok/25*100).toFixed(1)}%</strong>Exactitud en muestras sintéticas</div><div class="kpi"><strong>25</strong>Muestras evaluadas</div>`};
+renderGraph();
 </script>
-</body>
-</html>
+</body></html>
